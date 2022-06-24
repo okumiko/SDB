@@ -124,7 +124,7 @@ func (lf *LogFile) readBytes(offset, n int64) (buf []byte, err error) {
 	return
 }
 
-//根据offset从logfile读logRecord
+//根据 offset 从 logfile 读 logRecord
 func (lf *LogFile) ReadLogRecord(offset int64) (lr *LogRecord, recordSize int64, err error) {
 	//read recordHead
 	headerBuf, err := lf.readBytes(offset, MaxHeaderSize)

@@ -176,6 +176,6 @@ func (db *SDB) popList(key []byte, isLeft bool) ([]byte, error) {
 		return nil, err
 	}
 
-	err = db.deleteIndexTree(record, keyDir, List)
+	err = db.deleteIndexTree(key, keyDir, List)
 	return val, nil
 }

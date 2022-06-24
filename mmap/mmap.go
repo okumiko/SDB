@@ -1,8 +1,8 @@
 package mmap
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
-	"reflect"
 	"unsafe"
 )
 
@@ -42,28 +42,28 @@ func Munmap(data []byte) error {
 //成功，返回一个指向新虚拟内存区域的指针。
 //失败，返回MAP_FAILED。
 //函数原型void * mremap(void *old_address, size_t old_size , size_t new_size, int flags.../* void *new_address */);
-func Mremap(data []byte, size int) error {
-	const MREMAP_MAYMOVE = 0x1 //允许内核将映射重定位到新的虚拟地址,没有足够空间expand，mremap()失败
-
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data)) //底层数组的内存地址
-	newAddr, _, err := unix.Syscall6(
-		unix.SYS_MREMAP,
-		header.Data,     //旧地址已经被page aligned页对齐
-		uintptr(sh.Len), //VMB虚拟内存块的大小
-		uintptr(size),   //mremap操作后需要的VMB大小
-		uintptr(MREMAP_MAYMOVE),
-		0,
-		0,
-	)
-	if err != 0 {
-		return nil, err
-	}
-
-	sh.Data = newAddr
-	sh.Cap = size
-	sh.Len = size
-	return nil
-}
+//func Mremap(data []byte, size int) ([]byte, error) {
+//	const MREMAP_MAYMOVE = 0x1 //允许内核将映射重定位到新的虚拟地址,没有足够空间expand，mremap()失败
+//
+//	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data)) //底层数组的内存地址
+//	newAddr, _, err := unix.Syscall6(
+//		unix.SYS_MREMAP,
+//		sh.Data,         //旧地址已经被page aligned页对齐
+//		uintptr(sh.Len), //VMB虚拟内存块的大小
+//		uintptr(size),   //mremap操作后需要的VMB大小
+//		uintptr(MREMAP_MAYMOVE),
+//		0,
+//		0,
+//	)
+//	if err != 0 {
+//		return nil, err
+//	}
+//
+//	sh.Data = newAddr
+//	sh.Cap = size
+//	sh.Len = size
+//	return data, nil
+//}
 
 //把在该内存段的某个部分或者整段中的修改写回到被映射的文件中（或者从被映射文件里读出）。
 //int msync(void* addr, size_t len, int flags);

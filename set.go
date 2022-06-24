@@ -91,16 +91,16 @@ func (db *SDB) sremInternal(key []byte, member []byte) error {
 	if !updated {
 		return nil
 	}
-	entry := &logfile.LogEntry{Key: key, Value: sum, Type: logfile.TypeDelete}
-	pos, err := db.writeLogEntry(entry, Set)
+	entry := &bitcask.LogRecord{Key: key, Value: sum, Type: bitcask.TypeDelete}
+	pos, err := db.writeLogRecord(entry, Set)
 	if err != nil {
 		return err
 	}
 
-	db.sendDiscard(val, updated, Set)
+	db.sendCountChan(val, updated, Set)
 	// The deleted entry itself is also invalid.
-	_, size := logfile.EncodeEntry(entry)
-	node := &indexNode{fid: pos.fid, entrySize: size}
+	_, size := bitcask.EncodeRecord(entry)
+	node := &keyDir{fileID: pos.fileID, recordSize: size}
 	select {
 	case db.discards[Set].valChan <- node:
 	default:

@@ -122,6 +122,6 @@ func (db *SDB) Delete(key []byte) error {
 	}
 
 	//索引树删除key
-	err = db.deleteIndexTree(record, keyDir, String)
+	err = db.deleteIndexTree(key, keyDir, String)
 	return err
 }

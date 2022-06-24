@@ -5,9 +5,12 @@ import (
 	"hash/crc32"
 )
 
-//record的头部最大长度，使用varint编码
-// crc32	typ    kSize	vSize	expiredAt
-//  4    +   1   +   5   +   5    +    10      = 25
+/*
+record的头部最大长度，使用varint编码
+crc32	typ    kSize	vSize	expiredAt
+ 4    +   1   +   5   +   5    +    10      = 25
+*/
+
 const MaxHeaderSize = 25
 
 type RecordType byte
@@ -19,6 +22,7 @@ const (
 )
 
 //record结构，被编码写入日志文件
+
 type LogRecord struct {
 	Key       []byte
 	Value     []byte
@@ -34,13 +38,15 @@ type RecordHeader struct {
 	expiredAt int64
 }
 
-// +-------+--------+----------+------------+-----------+-------+---------+
-// |  crc  |  type  | key size | value size | expiresAt |  key  |  value  |
-// +-------+--------+----------+------------+-----------+-------+---------+
-// |---------------------RecordHeader-------------------|
-//         |--------------------------crc check---------------------------|
+/*
++-------+--------+----------+------------+-----------+-------+---------+
+|  crc  |  type  | key size | value size | expiresAt |  key  |  value  |
++-------+--------+----------+------------+-----------+-------+---------+
+|---------------------RecordHeader-------------------|
+        |--------------------------crc check---------------------------|
+*/
 
-//编码record生成字节切片
+// EncodeRecord 编码record生成字节切片
 func EncodeRecord(l *LogRecord) (buf []byte, recordSize int) {
 	if l == nil {
 		return nil, 0
