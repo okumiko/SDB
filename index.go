@@ -3,7 +3,7 @@ package sdb
 import (
 	"sdb/art"
 	"sdb/bitcask"
-	"sdb/data_structure/zset"
+	"sdb/datasturct/zset"
 	"sdb/utils"
 	"sync"
 	"time"
