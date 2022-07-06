@@ -35,7 +35,6 @@ const (
 	FilePrefix = "log."
 )
 
-// 文件类型
 type FileType byte
 
 const (
@@ -67,21 +66,21 @@ var (
 type IOType byte
 
 const (
-	// FileIO standard file io.
+	// FileIO 标准IO.
 	FileIO IOType = iota
-	// MMap Memory Map.
+	// MMap 内存映射IO
 	MMap
 )
 
-//读写磁盘文件的抽象
+//LogFile 读写磁盘文件的抽象
 type LogFile struct {
 	sync.RWMutex
-	FileID      uint32
-	WriteOffSet int64
-	IoSelector  ioselector.IOSelector
+	FileID      uint32                //文件id
+	WriteOffSet int64                 //追加写的offset
+	IoSelector  ioselector.IOSelector //IO接口
 }
 
-// 打开log file或者创建log file
+//OpenLogFile 根据指定路径打开文件或者新建文件
 func OpenLogFile(path string, fID uint32, fSize int64, fType FileType, ioType IOType) (lf *LogFile, err error) {
 	lf = &LogFile{FileID: fID}
 	fileName, err := lf.getLogFileName(path, fID, fType)
@@ -107,24 +106,25 @@ func OpenLogFile(path string, fID uint32, fSize int64, fType FileType, ioType IO
 	return
 }
 
+//getLogFileName 拼接文件全路径
 func (lf *LogFile) getLogFileName(path string, fid uint32, fType FileType) (name string, err error) {
 	if _, ok := FileNameMap[fType]; !ok {
 		return "", ErrUnsupportedLogFileType
 	}
 
 	fName := FileNameMap[fType] + fmt.Sprintf("%010d", fid)
-	name = filepath.Join(path, fName) //example:path/log.string.010
+	name = filepath.Join(path, fName) //example: path/log.string.010
 	return
 }
 
-//读为切片
+//readBytes 读取文件指定大小字节
 func (lf *LogFile) readBytes(offset, n int64) (buf []byte, err error) {
 	buf = make([]byte, n)
 	_, err = lf.IoSelector.Read(buf, offset)
 	return
 }
 
-//根据 offset 从 logfile 读 logRecord
+//ReadLogRecord 根据 offset 从文件读出logRecord
 func (lf *LogFile) ReadLogRecord(offset int64) (lr *LogRecord, recordSize int64, err error) {
 	//read recordHead
 	headerBuf, err := lf.readBytes(offset, MaxHeaderSize)

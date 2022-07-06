@@ -6,6 +6,12 @@ import (
 	"sdb/utils"
 )
 
+//hash结构：
+//key->|field1->val1|filed2->val2|filed3->val3|...
+//hash结构比较简单，一个key对应一棵ar树
+//key和field编码生成hashKey
+//文件中key｜field1->val1
+
 func (db *SDB) HSet(key, field, value []byte) error {
 	db.hashIndex.mu.Lock()
 	defer db.hashIndex.mu.Unlock()

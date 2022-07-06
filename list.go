@@ -7,10 +7,21 @@ import (
 	"sdb/utils"
 )
 
-//list用文件和索引树中多一个record和keyDir来记录list的headSeq和tailSeq，用key读取
-//用key和seq编码listKey对应真正的值
+//list结构：
+//key->val1|val2|val3|val4|...
+//list要解决的问题：val如何存储到文件中，以及如何通过key找到list结构以及进行push和pop操作
+//思路：
+//冗余的存储来保存元信息
+//key->headSeq|tailSeq list元信息用key来存储，因为push和pop只需要知道头和尾即headSeq和tailSeq即可
+//真正的数据，用key和seq编码生成listKey，作为val的key存储到文件中
+//ar树按照key建树的原因：
+//list数据大，空间换时间，提高查询修改树的效率
+//push或pop流程：
+//先通过key获取要添加的端部的seq（headSeq或tailSeq）
+//然后headSeq-1或者tailSeq+1和key组合生成listKey，其余步骤和string一样了
+//最后记得更新list元信息（headSeq或tailSeq）
 
-//list允许重复
+//LPush list允许重复
 func (db *SDB) LPush(key []byte, values ...[]byte) error {
 	db.listIndex.mu.Lock()
 	defer db.listIndex.mu.Unlock()
