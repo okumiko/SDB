@@ -7,7 +7,7 @@ import (
 	"sdb/utils"
 )
 
-// zset is the implementation of sorted set
+//zset太复杂，没想好怎么写文件放磁盘，就当学习zset实现了
 
 const (
 	maxLevel    = 32
@@ -17,34 +17,44 @@ const (
 type EncodeKey func(key, subKey []byte) []byte
 
 type (
-	// SortedSet sorted set struct
+	//SortedSet 一个key对应一个有序集合
 	SortedSet struct {
 		record map[string]*SortedSetNode
 	}
 
-	// SortedSetNode node of sorted set
+	// SortedSetNode 有序集合的数据结构，与redis一样，采用一个map加一个跳表的方式
 	SortedSetNode struct {
 		dict map[string]*sklNode
 		skl  *skipList
 	}
 
 	sklLevel struct {
-		forward *sklNode
-		span    uint64
+		forward *sklNode //前进指针
+
+		//跨度，用于记录两个节点之间的距离。指向NULL的所有前进指针的跨度都为0，因为它们没有连向任何节点。
+		//跨度实际上是用来计算排位（rank）的：在查找某个节点的过程中，将沿途访问过的所有层的跨度累计起来，得到的结果就是目标节点在跳跃表中的排位。
+		span uint64
 	}
 
 	sklNode struct {
-		member   string
-		score    float64
+		//在同一个跳跃表中，各个节点保存的成员对象必须是唯一的，但是多个节点保存的分值却可以是相同的
+		//分值相同的节点将按照成员对象在字典序中的大小来进行排序，成员对象较小的节点会排在前面（靠近表头的方向）
+		//而成员对象较大的节点则会排在后面（靠近表尾的方向）。
+		member string  //成员对象，为了简化直接用string。redis里是一个指针，指向字符串对象
+		score  float64 //分值，在跳跃表中，节点按各自所保存的分值从小到大排列。
+
+		//后退（backward）指针：它指向位于当前节点的前一个节点。
+		// 后退指针在程序从表尾向表头遍历时使用。每次只能后退至前一个节点
 		backward *sklNode
-		level    []*sklLevel
+
+		level []*sklLevel //层
 	}
 
-	skipList struct {
-		head   *sklNode
-		tail   *sklNode
-		length int64
-		level  int16
+	skipList struct { //持有跳表节点
+		head   *sklNode //指向表头节点
+		tail   *sklNode //指向表尾节点
+		length int64    //记录跳跃表的长度，即跳跃表目前包含节点的数量（表头节点不计算在内）
+		level  int16    //记录目前跳跃表内，层数最大的那个节点的层数（表头节点的层数不计算在内）
 	}
 )
 
@@ -459,6 +469,7 @@ func randomLevel() int16 {
 	return maxLevel
 }
 
+//sklInsert 跳表插入
 func (skl *skipList) sklInsert(score float64, member string) *sklNode {
 	updates := make([]*sklNode, maxLevel)
 	rank := make([]uint64, maxLevel)
@@ -522,6 +533,7 @@ func (skl *skipList) sklInsert(score float64, member string) *sklNode {
 	return p
 }
 
+//sklDeleteNode 跳表删除节点
 func (skl *skipList) sklDeleteNode(p *sklNode, updates []*sklNode) {
 	for i := int16(0); i < skl.level; i++ {
 		if updates[i].level[i].forward == p {
