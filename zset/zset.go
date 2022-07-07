@@ -24,8 +24,8 @@ type (
 
 	// SortedSetNode 有序集合的数据结构，与redis一样，采用一个map加一个跳表的方式
 	SortedSetNode struct {
-		dict map[string]*sklNode
-		skl  *skipList
+		dict map[string]*sklNode //字典，为了O(1)查询
+		skl  *skipList           //跳表，为了有序、插入、删除
 	}
 
 	sklLevel struct {
@@ -82,8 +82,7 @@ func (z *SortedSet) IterateAndSend(chn chan *bitcask.LogRecord, encode EncodeKey
 
 // ZAdd Adds the specified member with the specified score to the sorted set stored at key.
 func (z *SortedSet) ZAdd(key string, score float64, member string) {
-	if !z.exist(key) {
-
+	if !z.exist(key) { //不存在，创建key的新zSet
 		node := &SortedSetNode{
 			dict: make(map[string]*sklNode),
 			skl:  newSkipList(),
@@ -95,16 +94,17 @@ func (z *SortedSet) ZAdd(key string, score float64, member string) {
 	v, exist := item.dict[member]
 
 	var node *sklNode
-	if exist {
-		if score != v.score {
-			item.skl.sklDelete(v.score, member)
-			node = item.skl.sklInsert(score, member)
+	if exist { //存在的话需要看下跳表中是否有这个member，因为member要求不重复
+		if score != v.score { //一样的分值，一样的member直接跳过，不一样的更新分值
+			//因为分值更改后可能会影响排序
+			item.skl.sklDelete(v.score, member)      //先删
+			node = item.skl.sklInsert(score, member) //后插
 		}
-	} else {
+	} else { //新建的zSet肯定没有，大胆插入
 		node = item.skl.sklInsert(score, member)
 	}
 
-	if node != nil {
+	if node != nil { //如果没跳过，更新下字典映射
 		item.dict[member] = node
 	}
 }
@@ -350,6 +350,7 @@ func (z *SortedSet) ZClear(key string) {
 	}
 }
 
+//exist judge if the sortedSet of the key exists
 func (z *SortedSet) exist(key string) bool {
 	_, exist := z.record[key]
 	return exist
@@ -450,13 +451,13 @@ func sklNewNode(level int16, score float64, member string) *sklNode {
 }
 
 func newSkipList() *skipList {
-	return &skipList{
+	return &skipList{ //头节点
 		level: 1,
 		head:  sklNewNode(maxLevel, 0, ""),
 	}
 }
 
-func randomLevel() int16 {
+func randomLevel() int16 { //随机层数
 	var level int16 = 1
 	for float32(rand.Int31()&0xFFFF) < (probability * 0xFFFF) {
 		level++
@@ -471,46 +472,51 @@ func randomLevel() int16 {
 
 //sklInsert 跳表插入
 func (skl *skipList) sklInsert(score float64, member string) *sklNode {
-	updates := make([]*sklNode, maxLevel)
-	rank := make([]uint64, maxLevel)
+	updates := make([]*sklNode, maxLevel) //updates[i]表示i层指向新节点的节点
+	rank := make([]uint64, maxLevel)      //排位，rank[i]记录的是转正点，所谓转正点就是遍历跳表到一个节点后要向下层遍历
+	//rank[i]表示：假设对于新节点，i层指向它的节点为f，则头节点到f的span为rank[i]
+	//ran[0]+1一定能表示头节点到新节点的span即新节点的rank
 
 	p := skl.head
-	for i := skl.level - 1; i >= 0; i-- {
+	for i := skl.level - 1; i >= 0; i-- { //从最高层向最低层遍历
 		if i == skl.level-1 {
 			rank[i] = 0
 		} else {
-			rank[i] = rank[i+1]
+			rank[i] = rank[i+1] //初始化为上一轮的rank
 		}
 
 		if p.level[i] != nil {
-			for p.level[i].forward != nil &&
-				(p.level[i].forward.score < score ||
-					(p.level[i].forward.score == score && p.level[i].forward.member < member)) {
-
-				rank[i] += p.level[i].span
-				p = p.level[i].forward
+			nextNode := p.level[i].forward
+			for nextNode != nil && //在该层进行循环遍历
+				(nextNode.score < score || //新的分值比当前遍历节点的后后置节点分值大，后移
+					(nextNode.score == score && nextNode.member < member)) { //分值一样按字典序
+				//跨度累加
+				rank[i] += p.level[i].span //加上这个的跨度
+				p = nextNode
 			}
+			//找到了要插到后面的节点
 		}
-		updates[i] = p
+		updates[i] = p //记录下谁指向新节点
 	}
 
-	level := randomLevel()
-	if level > skl.level {
-		for i := skl.level; i < level; i++ {
-			rank[i] = 0
-			updates[i] = skl.head
-			updates[i].level[i].span = uint64(skl.length)
+	level := randomLevel() //产生层数
+	if level > skl.level { //新随机的层数比现在最大层数还大
+		for i := skl.level; i < level; i++ { //对于第一个循环没有遍历到的层，需要新增
+			rank[i] = 0                                   //0表示i层指向新节点就是头节点，头节点到头节点的span是0，很合理
+			updates[i] = skl.head                         //记录i层指向新节点的节点就是头节点
+			updates[i].level[i].span = uint64(skl.length) //先把跨度初始化为最大跨度
 		}
-		skl.level = level
+		skl.level = level //更新最大层数
 	}
 
-	p = sklNewNode(level, score, member)
-	for i := int16(0); i < level; i++ {
-		p.level[i].forward = updates[i].level[i].forward
-		updates[i].level[i].forward = p
+	p = sklNewNode(level, score, member) //new一个新节点
+	for i := int16(0); i < level; i++ {  //遍历新节点的层数
+		frontNode := updates[i].level[i]
+		p.level[i].forward = frontNode.forward //插入链表的操作，新节点指向原节点的后一个节点
+		frontNode.forward = p                  //原节点指向新节点
 
-		p.level[i].span = updates[i].level[i].span - (rank[0] - rank[i])
-		updates[i].level[i].span = (rank[0] - rank[i]) + 1
+		p.level[i].span = (frontNode.span + 1) - (rank[0] - rank[i] + 1) //新节点的span就是前向节点到后向节点的span+1（因为插进去多了1距离）减去 前向节点到新节点的距离
+		frontNode.span = rank[0] + 1 - rank[i]                           //新节点的前向节点指向新节点的span是头节点到新节点的span减去头节点到前向节点的span
 	}
 
 	for i := level; i < skl.level; i++ {
