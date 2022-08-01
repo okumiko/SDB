@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-//手动进行指定file的merge
+//MergeSpecificLogFile 手动进行指定file的merge
 func (db *SDB) MergeSpecificLogFile(dataType DataType, fID int, ratio float64) error {
 	if atomic.LoadInt32(&db.mergeState) > 0 {
 		return ErrMergeRunning

@@ -79,7 +79,7 @@ func (db *SDB) SetNX(key, value []byte) error {
 	return err
 }
 
-// Get get the value of key.
+// Get the value of key.
 // If the key does not exist the error ErrKeyNotFound is returned.
 func (db *SDB) Get(key []byte) ([]byte, error) {
 	db.strIndex.mu.RLock()
@@ -107,7 +107,7 @@ func (db *SDB) MGet(keys [][]byte) ([][]byte, error) {
 	return values, nil
 }
 
-// 追加写的方式删除
+//Delete 追加写的方式删除
 func (db *SDB) Delete(key []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()

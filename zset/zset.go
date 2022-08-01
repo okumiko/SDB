@@ -109,6 +109,157 @@ func (z *SortedSet) ZAdd(key string, score float64, member string) {
 	}
 }
 
+func sklNewNode(level int16, score float64, member string) *sklNode {
+	node := &sklNode{
+		score:  score,
+		member: member,
+		level:  make([]*sklLevel, level),
+	}
+
+	for i := range node.level {
+		node.level[i] = new(sklLevel)
+	}
+
+	return node
+}
+
+func newSkipList() *skipList {
+	return &skipList{ //头节点
+		level: 1,
+		head:  sklNewNode(maxLevel, 0, ""), //头节点层数是最大层数，一开始都指向nik，是0
+	}
+}
+
+func randomLevel() int16 { //随机层数
+	var level int16 = 1
+	for float32(rand.Int31()&0xFFFF) < (probability * 0xFFFF) {
+		level++
+	}
+
+	if level < maxLevel {
+		return level
+	}
+
+	return maxLevel
+}
+
+//sklInsert 跳表插入
+func (skl *skipList) sklInsert(score float64, member string) *sklNode {
+	updates := make([]*sklNode, maxLevel) //updates[i]表示i层指向新节点的节点
+	rank := make([]uint64, maxLevel)      //排位，rank[i]记录的是转正点，所谓转正点就是遍历跳表到一个节点后要向下层遍历
+	//rank[i]表示：假设对于新节点，i层指向它的节点为f，则头节点到f的span为rank[i]
+	//ran[0]+1一定能表示头节点到新节点的span即新节点的rank
+
+	p := skl.head
+	for i := skl.level - 1; i >= 0; i-- { //从最高层向最低层遍历
+		if i == skl.level-1 {
+			rank[i] = 0
+		} else {
+			rank[i] = rank[i+1] //初始化为上一轮的rank
+		}
+
+		if p.level[i] != nil {
+			nextNode := p.level[i].forward
+			for nextNode != nil && //在该层进行循环遍历
+				(nextNode.score < score || //新的分值比当前遍历节点的后后置节点分值大，后移
+					(nextNode.score == score && nextNode.member < member)) { //分值一样按字典序
+				//跨度累加
+				rank[i] += p.level[i].span //加上这个的跨度
+				p = nextNode
+			}
+			//找到了要插到后面的节点
+		}
+		updates[i] = p //记录下谁指向新节点
+	}
+
+	level := randomLevel() //随机产生层数
+	if level > skl.level { //新随机的层数比现在最大层数还大
+		for i := skl.level; i < level; i++ { //对于第一个循环没有遍历到的层，需要新增
+			rank[i] = 0                                   //0表示i层指向新节点就是头节点，头节点到头节点的span是0，很合理
+			updates[i] = skl.head                         //记录i层指向新节点的节点就是头节点
+			updates[i].level[i].span = uint64(skl.length) //先把跨度初始化为最大跨度
+		}
+		skl.level = level //更新最大层数
+	}
+
+	p = sklNewNode(level, score, member) //new一个新节点
+	for i := int16(0); i < level; i++ {  //遍历新节点的层数
+		frontNode := updates[i].level[i]
+		p.level[i].forward = frontNode.forward //插入链表的操作，新节点指向原节点的后一个节点
+		frontNode.forward = p                  //原节点指向新节点
+
+		p.level[i].span = (frontNode.span + 1) - (rank[0] - rank[i] + 1) //新节点的span就是前向节点到后向节点的span+1（因为插进去多了1距离）减去 前向节点到新节点的距离
+		frontNode.span = rank[0] + 1 - rank[i]                           //新节点的前向节点指向新节点的span是头节点到新节点的span减去头节点到前向节点的span
+	}
+
+	for i := level; i < skl.level; i++ { //如果原来的层数比新节点的层数大，把剩下的层数的当前节点前面的节点的span都+1
+		updates[i].level[i].span++
+	}
+
+	if updates[0] == skl.head { //如果紧挨当前节点的上一个节点是头节点，后退指针指向null
+		p.backward = nil
+	} else { //否则指向紧挨的上一个节点
+		p.backward = updates[0]
+	}
+
+	if p.level[0].forward != nil { //紧挨当前节点的后一个节点指向当前节点
+		p.level[0].forward.backward = p
+	} else { //否则说明新节点是尾节点，tail指向新节点
+		skl.tail = p
+	}
+
+	skl.length++ //长度+1
+	return p
+}
+
+//sklDeleteNode 跳表删除节点
+func (skl *skipList) sklDeleteNode(p *sklNode, updates []*sklNode) {
+	for i := int16(0); i < skl.level; i++ {
+		if updates[i].level[i].forward == p { //对于后置节点是要删除节点的节点
+			updates[i].level[i].span += p.level[i].span - 1  //span加上删除的节点的span减一（因为删除了一个节点）
+			updates[i].level[i].forward = p.level[i].forward //指针指向删除节点的后置节点
+		} else { //其他节点直接span减一
+			updates[i].level[i].span--
+		}
+	}
+
+	//回退指针改变
+	if p.level[0].forward != nil { //不是尾节点
+		p.level[0].forward.backward = p.backward //前置节点指向后置节点
+	} else { //是尾节点
+		skl.tail = p.backward //尾节点指针指向前置节点
+	}
+
+	for skl.level > 1 && skl.head.level[skl.level-1].forward == nil { //删去头节点的forward指针指向nil的层数，说明这层没有成员节点
+		skl.level--
+	}
+
+	//长度直接减一
+	skl.length--
+}
+
+func (skl *skipList) sklDelete(score float64, member string) {
+	update := make([]*sklNode, maxLevel)
+	p := skl.head
+
+	for i := skl.level - 1; i >= 0; i-- {
+		nextNode := p.level[i].forward
+		for nextNode != nil &&
+			(nextNode.score < score ||
+				(nextNode.score == score && nextNode.member < member)) {
+			p = nextNode
+		}
+		update[i] = p //转折点
+	}
+
+	p = p.level[0].forward                                  //nextNode有可能是要找的，要么大于要么等于                                  //
+	if p != nil && score == p.score && p.member == member { //比较确实是要删除的
+		skl.sklDeleteNode(p, update) //删除节点
+		return
+	}
+	//不是的话不做任何操作
+}
+
 // ZScore returns the score of member in the sorted set at key.
 func (z *SortedSet) ZScore(key string, member string) (ok bool, score float64) {
 	if !z.exist(key) {
@@ -434,153 +585,6 @@ func (z *SortedSet) findRange(key string, start, stop int64, reverse bool, withS
 	}
 
 	return
-}
-
-func sklNewNode(level int16, score float64, member string) *sklNode {
-	node := &sklNode{
-		score:  score,
-		member: member,
-		level:  make([]*sklLevel, level),
-	}
-
-	for i := range node.level {
-		node.level[i] = new(sklLevel)
-	}
-
-	return node
-}
-
-func newSkipList() *skipList {
-	return &skipList{ //头节点
-		level: 1,
-		head:  sklNewNode(maxLevel, 0, ""),
-	}
-}
-
-func randomLevel() int16 { //随机层数
-	var level int16 = 1
-	for float32(rand.Int31()&0xFFFF) < (probability * 0xFFFF) {
-		level++
-	}
-
-	if level < maxLevel {
-		return level
-	}
-
-	return maxLevel
-}
-
-//sklInsert 跳表插入
-func (skl *skipList) sklInsert(score float64, member string) *sklNode {
-	updates := make([]*sklNode, maxLevel) //updates[i]表示i层指向新节点的节点
-	rank := make([]uint64, maxLevel)      //排位，rank[i]记录的是转正点，所谓转正点就是遍历跳表到一个节点后要向下层遍历
-	//rank[i]表示：假设对于新节点，i层指向它的节点为f，则头节点到f的span为rank[i]
-	//ran[0]+1一定能表示头节点到新节点的span即新节点的rank
-
-	p := skl.head
-	for i := skl.level - 1; i >= 0; i-- { //从最高层向最低层遍历
-		if i == skl.level-1 {
-			rank[i] = 0
-		} else {
-			rank[i] = rank[i+1] //初始化为上一轮的rank
-		}
-
-		if p.level[i] != nil {
-			nextNode := p.level[i].forward
-			for nextNode != nil && //在该层进行循环遍历
-				(nextNode.score < score || //新的分值比当前遍历节点的后后置节点分值大，后移
-					(nextNode.score == score && nextNode.member < member)) { //分值一样按字典序
-				//跨度累加
-				rank[i] += p.level[i].span //加上这个的跨度
-				p = nextNode
-			}
-			//找到了要插到后面的节点
-		}
-		updates[i] = p //记录下谁指向新节点
-	}
-
-	level := randomLevel() //产生层数
-	if level > skl.level { //新随机的层数比现在最大层数还大
-		for i := skl.level; i < level; i++ { //对于第一个循环没有遍历到的层，需要新增
-			rank[i] = 0                                   //0表示i层指向新节点就是头节点，头节点到头节点的span是0，很合理
-			updates[i] = skl.head                         //记录i层指向新节点的节点就是头节点
-			updates[i].level[i].span = uint64(skl.length) //先把跨度初始化为最大跨度
-		}
-		skl.level = level //更新最大层数
-	}
-
-	p = sklNewNode(level, score, member) //new一个新节点
-	for i := int16(0); i < level; i++ {  //遍历新节点的层数
-		frontNode := updates[i].level[i]
-		p.level[i].forward = frontNode.forward //插入链表的操作，新节点指向原节点的后一个节点
-		frontNode.forward = p                  //原节点指向新节点
-
-		p.level[i].span = (frontNode.span + 1) - (rank[0] - rank[i] + 1) //新节点的span就是前向节点到后向节点的span+1（因为插进去多了1距离）减去 前向节点到新节点的距离
-		frontNode.span = rank[0] + 1 - rank[i]                           //新节点的前向节点指向新节点的span是头节点到新节点的span减去头节点到前向节点的span
-	}
-
-	for i := level; i < skl.level; i++ {
-		updates[i].level[i].span++
-	}
-
-	if updates[0] == skl.head {
-		p.backward = nil
-	} else {
-		p.backward = updates[0]
-	}
-
-	if p.level[0].forward != nil {
-		p.level[0].forward.backward = p
-	} else {
-		skl.tail = p
-	}
-
-	skl.length++
-	return p
-}
-
-//sklDeleteNode 跳表删除节点
-func (skl *skipList) sklDeleteNode(p *sklNode, updates []*sklNode) {
-	for i := int16(0); i < skl.level; i++ {
-		if updates[i].level[i].forward == p {
-			updates[i].level[i].span += p.level[i].span - 1
-			updates[i].level[i].forward = p.level[i].forward
-		} else {
-			updates[i].level[i].span--
-		}
-	}
-
-	if p.level[0].forward != nil {
-		p.level[0].forward.backward = p.backward
-	} else {
-		skl.tail = p.backward
-	}
-
-	for skl.level > 1 && skl.head.level[skl.level-1].forward == nil {
-		skl.level--
-	}
-
-	skl.length--
-}
-
-func (skl *skipList) sklDelete(score float64, member string) {
-	update := make([]*sklNode, maxLevel)
-	p := skl.head
-
-	for i := skl.level - 1; i >= 0; i-- {
-		for p.level[i].forward != nil &&
-			(p.level[i].forward.score < score ||
-				(p.level[i].forward.score == score && p.level[i].forward.member < member)) {
-			p = p.level[i].forward
-		}
-		update[i] = p
-	}
-
-	p = p.level[0].forward
-	if p != nil && score == p.score && p.member == member {
-		skl.sklDeleteNode(p, update)
-		return
-	}
 }
 
 func (skl *skipList) sklGetRank(score float64, member string) int64 {

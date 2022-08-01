@@ -4,7 +4,7 @@ import "encoding/binary"
 
 const MaxHashKeyHeader = 10
 
-//key size|field size|key|field
+//EncodeHashKey key size|field size|key|field
 func EncodeHashKey(key, field []byte) []byte {
 	kSize := len(key)
 	fSize := len(field)

@@ -2,7 +2,6 @@ package sdb
 
 import (
 	"errors"
-	"math"
 	"sdb/bitcask"
 	"sdb/count"
 	"sdb/flock"
@@ -22,19 +21,12 @@ var (
 	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
 	ErrWrongNumberOfArgs = errors.New("wrong number of arguments")
 
-	// ErrIntegerOverflow overflows int64 limitations
-	ErrIntegerOverflow = errors.New("increment or decrement overflow")
-
-	// ErrWrongValueType value is not a number
-	ErrWrongValueType = errors.New("value is not an integer")
-
+	//ErrMergeRunning lock the SDB when log file is merging
 	ErrMergeRunning = errors.New("log file merge is running, retry later")
 )
 
 const (
-	logFileTypeNum   = 5
-	encodeHeaderSize = 10
-	initialListSeq   = math.MaxUint32 / 2
+	logFileTypeNum = 5
 
 	lockFileName = "FLOCK"
 )
@@ -78,7 +70,7 @@ type (
 	}
 )
 
-//刷盘
+//Sync 刷盘
 func (db *SDB) Sync() error {
 	db.mu.Lock()
 	defer db.mu.Unlock()

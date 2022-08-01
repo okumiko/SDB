@@ -2,6 +2,7 @@ package sdb
 
 import (
 	"encoding/binary"
+	"math"
 	"sdb/art"
 	"sdb/bitcask"
 	"sdb/utils"
@@ -20,6 +21,7 @@ import (
 //先通过key获取要添加的端部的seq（headSeq或tailSeq）
 //然后headSeq-1或者tailSeq+1和key组合生成listKey，其余步骤和string一样了
 //最后记得更新list元信息（headSeq或tailSeq）
+const initialListSeq = math.MaxUint32 / 2
 
 //LPush list允许重复
 func (db *SDB) LPush(key []byte, values ...[]byte) error {

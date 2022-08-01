@@ -80,7 +80,7 @@ func (db *SDB) initCountFiles() error {
 	countFiles := make(map[DataType]*count.CountFile)
 	for i := String; i < logFileTypeNum; i++ {
 		name := bitcask.FileNameMap[bitcask.FileType(i)] + count.CountFileName
-		hf, err := count.NewCountFile(countFilePath, name, db.opts.DiscardBufferSize)
+		hf, err := count.NewCountFile(countFilePath, name, db.opts.CountBufferSize)
 		if err != nil {
 			return err
 		}
