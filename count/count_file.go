@@ -26,16 +26,16 @@ const (
 	CountFilePath             = "COUNT_FILE"
 )
 
-// countFile文件空间不足,按照默认一共可以统计652个文件，不会不足，说明出错了
+//ErrCountFileNoSpace countFile文件空间不足,按照默认一共可以统计652个文件，不会不足，说明出错了
 var ErrCountFileNoSpace = errors.New("[count_file] not enough space can be allocated for count file")
 
-//keyDir变更，只需要file_id和record_size信息
+//CountUpdate keyDir变更，只需要file_id和record_size信息
 type CountUpdate struct {
 	FileID     uint32
 	RecordSize int
 }
 
-//countFile内存的抽象
+//CountFile 内存的抽象
 type CountFile struct {
 	sync.Mutex
 
@@ -47,7 +47,7 @@ type CountFile struct {
 	CountRcv chan *CountUpdate //接受keyDir的更新
 }
 
-//新建countFile文件，或者打开存在的countFile
+//NewCountFile 新建countFile文件，或者打开存在的countFile
 func NewCountFile(path, name string, bufferSize int) (*CountFile, error) {
 
 	//使用mmap()方式，因为：
@@ -93,7 +93,7 @@ func NewCountFile(path, name string, bufferSize int) (*CountFile, error) {
 	return cf, nil
 }
 
-//设置指定file_id的file_size,建立新文件时初始化用
+//SetFileSize 设置指定file_id的file_size,建立新文件时初始化用
 func (cf *CountFile) SetFileSize(fileID uint32, fileSize uint32) error {
 	cf.Lock()
 	defer cf.Unlock()
@@ -120,7 +120,7 @@ func (cf *CountFile) SetFileSize(fileID uint32, fileSize uint32) error {
 	return nil
 }
 
-// get merge candidate list
+//GetMCL get merge candidate list
 //从count file获取需要被merge的文件
 //传入活跃文件id，不merge活跃文件，传入ratio设置的占用率阈值，超过的视为需要merge了
 func (cf *CountFile) GetMCL(activeFID uint32, ratio float64) ([]uint32, error) {
@@ -160,7 +160,7 @@ func (cf *CountFile) GetMCL(activeFID uint32, ratio float64) ([]uint32, error) {
 	return mcl, nil
 }
 
-//刷盘
+//Sync 刷盘
 func (cf *CountFile) Sync() error {
 	return cf.selector.Sync()
 }
@@ -169,7 +169,7 @@ func (cf *CountFile) Close() error {
 	return cf.selector.Close()
 }
 
-//清理指定file_id的统计记录
+//Clear 清理指定file_id的统计记录
 func (cf *CountFile) Clear(fileID uint32) error {
 	cf.Lock()
 	defer cf.Unlock()
@@ -200,7 +200,7 @@ func (cf *CountFile) Clear(fileID uint32) error {
 	return nil
 }
 
-// 给变动的file（更新/新建）分配offset，返回分配的offset。注意使用前上锁
+//alloc 给变动的file（更新/新建）分配offset，返回分配的offset。注意使用前上锁
 func (cf *CountFile) alloc(fileID uint32) (int64, error) {
 	//已为该file_id分配offset，返回offset
 	if offset, ok := cf.usedOffsets[fileID]; ok {
@@ -218,7 +218,7 @@ func (cf *CountFile) alloc(fileID uint32) (int64, error) {
 	return offset, nil
 }
 
-//监听keyDir更新
+//listenUpdate 监听keyDir更新
 func (cf *CountFile) listenUpdate() {
 	for { //不停地读chan
 		select {
@@ -231,7 +231,7 @@ func (cf *CountFile) listenUpdate() {
 	}
 }
 
-//统计增加file_id的占用
+//updateCountFile 统计增加file_id的占用
 func (cf *CountFile) updateCountFile(fileID uint32, recordSize int) {
 	if recordSize <= 0 {
 		return

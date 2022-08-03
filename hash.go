@@ -12,6 +12,7 @@ import (
 //key和field编码生成hashKey
 //文件中key｜field1->val1
 
+//HSet ...
 func (db *SDB) HSet(key, field, value []byte) error {
 	db.hashIndex.mu.Lock()
 	defer db.hashIndex.mu.Unlock()
@@ -35,7 +36,7 @@ func (db *SDB) HSet(key, field, value []byte) error {
 	return err
 }
 
-// HGet returns the value associated with field in the hash stored at key.
+// HGet ...
 func (db *SDB) HGet(key, field []byte) ([]byte, error) {
 	db.hashIndex.mu.RLock()
 	defer db.hashIndex.mu.RUnlock()

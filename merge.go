@@ -22,7 +22,7 @@ func (db *SDB) MergeSpecificLogFile(dataType DataType, fID int, ratio float64) e
 
 //定期进行merge
 func (db *SDB) regularLogFileMerge() {
-	if db.opts.LogFileGCInterval <= 0 {
+	if db.opts.LogFileMergeInterval <= 0 {
 		return
 	}
 	//优雅关闭进程
@@ -30,7 +30,7 @@ func (db *SDB) regularLogFileMerge() {
 	signal.Notify(quitSignal, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	//开启定时器，定时进行gc
-	ticker := time.NewTicker(db.opts.LogFileGCInterval)
+	ticker := time.NewTicker(db.opts.LogFileMergeInterval)
 	defer ticker.Stop()
 
 	for {
@@ -43,7 +43,7 @@ func (db *SDB) regularLogFileMerge() {
 			//每个dataType起个协程gc，互不干扰
 			for dt := String; dt < logFileTypeNum; dt++ {
 				go func(dataType DataType) {
-					err := db.merge(dataType, -1, db.opts.LogFileGCRatio)
+					err := db.merge(dataType, -1, db.opts.LogFileMergeRatio)
 					if err != nil {
 						logger.Errorf("log file gc err, dataType: [%v], err: [%v]", dataType, err)
 					}

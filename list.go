@@ -42,7 +42,7 @@ func (db *SDB) LPush(key []byte, values ...[]byte) error {
 	return nil
 }
 
-// LPop removes and returns the first elements of the list stored at key.
+// LPop removes and returns 队头元素
 func (db *SDB) LPop(key []byte) ([]byte, error) {
 	db.listIndex.mu.Lock()
 	defer db.listIndex.mu.Unlock()
@@ -67,7 +67,7 @@ func (db *SDB) RPush(key []byte, values ...[]byte) error {
 	return nil
 }
 
-// RPop Removes and returns the last elements of the list stored at key.
+// RPop Removes and returns 队尾元素
 func (db *SDB) RPop(key []byte) ([]byte, error) {
 	db.listIndex.mu.Lock()
 	defer db.listIndex.mu.Unlock()

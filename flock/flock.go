@@ -1,9 +1,11 @@
+// Package flock
 //pid锁，仅linux或mac或unix
 package flock
 
 import (
 	"fmt"
 	"os"
+	"syscall"
 )
 
 type FileLock struct {
@@ -11,7 +13,7 @@ type FileLock struct {
 	fd   *os.File
 }
 
-//文件锁,获取一个文件锁，如果加锁则返回错误
+//AcquireFileLock 文件锁,获取一个文件锁，如果加锁则返回错误
 func AcquireFileLock(path string, readOnly bool) (*FileLock, error) {
 	flag := os.O_RDWR // open the file read-write.
 	if readOnly {
@@ -36,8 +38,7 @@ func AcquireFileLock(path string, readOnly bool) (*FileLock, error) {
 	return &FileLock{fd: file, name: path}, nil
 }
 
-// Sync commits the current contents of the file to stable storage.
-// Typically, this means flushing the file system's in-memory copy of recently written data to disk.
+//SyncFileLock pageCache刷到磁盘
 func SyncFileLock(path string) error {
 	fd, err := os.Open(path)
 	if err != nil {
@@ -54,7 +55,7 @@ func SyncFileLock(path string) error {
 	return nil
 }
 
-// Release release the file lock.
+// Release 解锁
 func (fl *FileLock) Release() error {
 	if err := syscall.Flock(int(fl.fd.Fd()), syscall.LOCK_UN|syscall.LOCK_NB); err != nil {
 		return err

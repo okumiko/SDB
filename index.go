@@ -9,16 +9,7 @@ import (
 	"time"
 )
 
-const (
-	String DataType = iota
-	List
-	Hash
-	Set
-	ZSet
-)
-
 type (
-	DataType byte
 	strIndex struct {
 		mu      *sync.RWMutex
 		idxTree *art.AdaptiveRadixTree
