@@ -28,18 +28,18 @@ type (
 	}
 
 	setIndex struct {
-		mu      *sync.RWMutex
-		murhash *utils.Murmur128
-		trees   map[string]*art.AdaptiveRadixTree
-		idxTree *art.AdaptiveRadixTree
+		mu         *sync.RWMutex
+		murmurhash *utils.Murmur128
+		trees      map[string]*art.AdaptiveRadixTree
+		idxTree    *art.AdaptiveRadixTree
 	}
 
 	zsetIndex struct {
-		mu      *sync.RWMutex
-		indexes *zset.SortedSet
-		murhash *utils.Murmur128
-		trees   map[string]*art.AdaptiveRadixTree
-		idxTree *art.AdaptiveRadixTree
+		mu         *sync.RWMutex
+		indexes    *zset.SortedSet
+		murmurhash *utils.Murmur128
+		trees      map[string]*art.AdaptiveRadixTree
+		idxTree    *art.AdaptiveRadixTree
 	}
 )
 
@@ -56,19 +56,19 @@ func newHashIndex() *hashIndex {
 
 func newSetIndex() *setIndex {
 	return &setIndex{
-		idxTree: art.NewART(),
-		murhash: utils.NewMurmur128(),
-		trees:   make(map[string]*art.AdaptiveRadixTree),
-		mu:      new(sync.RWMutex),
+		idxTree:    art.NewART(),
+		murmurhash: utils.NewMurmur128(),
+		trees:      make(map[string]*art.AdaptiveRadixTree),
+		mu:         new(sync.RWMutex),
 	}
 }
 
 func newZSetIndex() *zsetIndex {
 	return &zsetIndex{
-		indexes: zset.New(),
-		murhash: utils.NewMurmur128(),
-		trees:   make(map[string]*art.AdaptiveRadixTree),
-		mu:      new(sync.RWMutex),
+		indexes:    zset.New(),
+		murmurhash: utils.NewMurmur128(),
+		trees:      make(map[string]*art.AdaptiveRadixTree),
+		mu:         new(sync.RWMutex),
 	}
 }
 

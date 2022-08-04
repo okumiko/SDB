@@ -2,16 +2,16 @@ package art
 
 //ar树
 import (
-	goart "github.com/plar/go-adaptive-radix-tree"
+	goArt "github.com/plar/go-adaptive-radix-tree"
 )
 
 type AdaptiveRadixTree struct {
-	tree goart.Tree
+	tree goArt.Tree
 }
 
 func NewART() *AdaptiveRadixTree {
 	return &AdaptiveRadixTree{
-		tree: goart.New(),
+		tree: goArt.New(),
 	}
 }
 
@@ -28,14 +28,14 @@ func (art *AdaptiveRadixTree) Delete(key []byte) (val interface{}, deleted bool)
 	return art.tree.Delete(key)
 }
 
-func (art *AdaptiveRadixTree) Iterator() goart.Iterator {
+func (art *AdaptiveRadixTree) Iterator() goArt.Iterator {
 	return art.tree.Iterator()
 }
 
-//前缀遍历
+//PrefixScan 前缀遍历
 func (art *AdaptiveRadixTree) PrefixScan(prefix []byte, count int) (keys [][]byte) {
-	cb := func(node goart.Node) bool {
-		if node.Kind() != goart.Leaf {
+	cb := func(node goArt.Node) bool {
+		if node.Kind() != goArt.Leaf {
 			return true
 		}
 		if count <= 0 {

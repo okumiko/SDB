@@ -36,11 +36,11 @@ func (db *SDB) SAdd(key []byte, members ...[]byte) error {
 			continue
 		}
 		//对mem算一个hash值，内存放hash值，value放磁盘
-		if err := db.setIndex.murhash.Write(mem); err != nil {
+		if err := db.setIndex.murmurhash.Write(mem); err != nil {
 			return err
 		}
-		sum := db.setIndex.murhash.EncodeSum128()
-		db.setIndex.murhash.Reset()
+		sum := db.setIndex.murmurhash.EncodeSum128()
+		db.setIndex.murmurhash.Reset()
 
 		record := &bitcask.LogRecord{
 			Key:   key,
@@ -94,11 +94,11 @@ func (db *SDB) SPop(key []byte, count uint) ([][]byte, error) {
 func (db *SDB) sremInternal(key []byte, member []byte) error {
 	db.setIndex.idxTree = db.setIndex.trees[string(key)]
 
-	if err := db.setIndex.murhash.Write(member); err != nil {
+	if err := db.setIndex.murmurhash.Write(member); err != nil {
 		return err
 	}
-	sum := db.setIndex.murhash.EncodeSum128()
-	db.setIndex.murhash.Reset()
+	sum := db.setIndex.murmurhash.EncodeSum128()
+	db.setIndex.murmurhash.Reset()
 
 	entry := &bitcask.LogRecord{Key: key, Type: bitcask.TypeDelete}
 	keyDir, err := db.writeLogRecord(entry, Set)
