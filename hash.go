@@ -19,7 +19,9 @@ func (db *SDB) HSet(key, field, value []byte) error {
 
 	hashKey := utils.EncodeHashKey(key, field)
 	//把hash key作为key写record，因为每条record需要知道他的key和field，建索引时需要
+	//生成record
 	record := &bitcask.LogRecord{Key: hashKey, Value: value}
+	//record写入磁盘，返回keyDir
 	keyDir, err := db.writeLogRecord(record, Hash)
 	if err != nil {
 		return err
@@ -31,6 +33,7 @@ func (db *SDB) HSet(key, field, value []byte) error {
 	db.hashIndex.idxTree = db.hashIndex.trees[string(key)]
 
 	//具体每颗索引树key是field
+	//field->keyDir
 	err = db.updateIndexTree(&bitcask.LogRecord{Key: field, Value: value},
 		keyDir, true, Hash)
 	return err

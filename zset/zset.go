@@ -7,8 +7,6 @@ import (
 	"sdb/utils"
 )
 
-//zset太复杂，没想好怎么写文件放磁盘，就当学习zset实现了
-
 const (
 	maxLevel    = 32
 	probability = 0.25
