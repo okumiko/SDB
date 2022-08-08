@@ -6,13 +6,14 @@ import (
 	"sdb/flock"
 	"sdb/ioselector"
 	"sdb/logger"
+	"sdb/options"
 	"sync"
 	"sync/atomic"
 )
 
 type (
 	SDB struct { //db内存中的数据结构
-		opts Options //设置
+		opts options.Options //设置
 
 		// bitcask模型
 

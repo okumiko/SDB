@@ -9,6 +9,7 @@ import (
 	"sdb/count"
 	"sdb/flock"
 	"sdb/logger"
+	"sdb/options"
 	"sdb/utils"
 	"sort"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 	"time"
 )
 
-func OpenDB(opts Options) (*SDB, error) {
+func OpenDB(opts options.Options) (*SDB, error) {
 	// create the dir path if not exists.
 	if !utils.PathExist(opts.DBPath) {
 		if err := os.MkdirAll(opts.DBPath, os.ModePerm); err != nil {
@@ -217,7 +218,7 @@ func (db *SDB) buildStrIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 		db.strIndex.idxTree.Delete(strKey)
 		return
 	}
-	if db.opts.IndexMode == KeyValueMemMode {
+	if db.opts.IndexMode == options.KeyValueMemMode {
 		keyDir.value = record.Value
 	}
 	db.strIndex.idxTree.Put(strKey, keyDir)
@@ -241,7 +242,7 @@ func (db *SDB) buildListIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 		db.listIndex.idxTree.Delete(record.Key)
 		return
 	}
-	if db.opts.IndexMode == KeyValueMemMode {
+	if db.opts.IndexMode == options.KeyValueMemMode {
 		keyDir.value = record.Value
 	}
 
@@ -261,7 +262,7 @@ func (db *SDB) buildHashIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 		return
 	}
 
-	if db.opts.IndexMode == KeyValueMemMode {
+	if db.opts.IndexMode == options.KeyValueMemMode {
 		keyDir.value = record.Value
 	}
 

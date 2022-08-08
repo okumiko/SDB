@@ -3,6 +3,7 @@ package sdb
 import (
 	"sdb/art"
 	"sdb/bitcask"
+	"sdb/options"
 	"sdb/utils"
 	"sdb/zset"
 	"sync"
@@ -75,7 +76,7 @@ func newZSetIndex() *zsetIndex {
 //更新索引树
 func (db *SDB) updateIndexTree(lr *bitcask.LogRecord, keyDir *keyDir, sendCount bool, dType DataType) error {
 	// in KeyValueMemMode, both key and value will store in memory.
-	if db.opts.IndexMode == KeyValueMemMode {
+	if db.opts.IndexMode == options.KeyValueMemMode {
 		keyDir.value = lr.Value
 	}
 
@@ -155,7 +156,7 @@ func (db *SDB) getVal(key []byte, dataType DataType) ([]byte, error) {
 	}
 	// In KeyValueMemMode, the value will be stored in memory.
 	// So get the value from the index info.
-	if db.opts.IndexMode == KeyValueMemMode && len(keyDir.value) != 0 {
+	if db.opts.IndexMode == options.KeyValueMemMode && len(keyDir.value) != 0 {
 		return keyDir.value, nil
 	}
 
