@@ -6,10 +6,10 @@ import (
 	"sdb/mmap"
 )
 
-// MMapSelector represents using memory-mapped file I/O.
+// MMapSelector MMAP方式实现IOSelector
 type MMapSelector struct {
 	file *os.File
-	buf  []byte // //没有加锁，因为写不同的offset不会race
+	buf  []byte //没有加锁，因为写不同的offset不会race
 	cap  int64
 }
 
@@ -29,13 +29,12 @@ func NewMMapSelector(fileName string, fileSize int64) (IOSelector, error) {
 	return &MMapSelector{file: file, buf: buf, cap: int64(len(buf))}, nil
 }
 
-// Write copy slice b into mapped region(buf) at offset.
 func (m *MMapSelector) Write(b []byte, offset int64) (int, error) {
-	len := int64(len(b))
-	if len <= 0 {
+	l := int64(len(b))
+	if l <= 0 {
 		return 0, nil
 	}
-	if offset < 0 || len+offset > m.cap {
+	if offset < 0 || l+offset > m.cap {
 		return 0, io.EOF
 	}
 	return copy(m.buf[offset:], b), nil
@@ -65,7 +64,6 @@ func (m *MMapSelector) Close() error {
 	return m.file.Close()
 }
 
-//删除文件
 func (m *MMapSelector) Delete() error {
 	//取消映射
 	if err := mmap.Munmap(m.buf); err != nil {

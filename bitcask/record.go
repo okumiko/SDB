@@ -6,7 +6,7 @@ import (
 )
 
 /*
-record的头部最大长度，使用varint编码
+record的头部最大长度，使用varInt编码
 crc32	typ    kSize	vSize	expiredAt
  4    +   1   +   5   +   5    +    10      = 25
 */

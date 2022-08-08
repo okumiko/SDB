@@ -56,7 +56,6 @@ type (
 	}
 )
 
-// New create a new sorted set.
 func New() *SortedSet {
 	return &SortedSet{
 		make(map[string]*SortedSetNode),
@@ -78,7 +77,7 @@ func (z *SortedSet) IterateAndSend(chn chan *bitcask.LogRecord, encode EncodeKey
 	return
 }
 
-// ZAdd Adds the specified member with the specified score to the sorted set stored at key.
+// ZAdd 给指定成员赋值score（新建或者重新赋值），并重新排序
 func (z *SortedSet) ZAdd(key string, score float64, member string) {
 	if !z.exist(key) { //不存在，创建key的新zSet
 		node := &SortedSetNode{
@@ -258,7 +257,7 @@ func (skl *skipList) sklDelete(score float64, member string) {
 	//不是的话不做任何操作
 }
 
-// ZScore returns the score of member in the sorted set at key.
+// ZScore 返回指定成员的score
 func (z *SortedSet) ZScore(key string, member string) (ok bool, score float64) {
 	if !z.exist(key) {
 		return
@@ -272,7 +271,7 @@ func (z *SortedSet) ZScore(key string, member string) (ok bool, score float64) {
 	return true, node.score
 }
 
-// ZCard returns the sorted set cardinality (number of elements) of the sorted set stored at key.
+// ZCard 返回元素数量
 func (z *SortedSet) ZCard(key string) int {
 	if !z.exist(key) {
 		return 0
@@ -281,8 +280,7 @@ func (z *SortedSet) ZCard(key string) int {
 	return len(z.record[key].dict)
 }
 
-// ZRank returns the rank of member in the sorted set stored at key, with the scores ordered from low to high.
-// The rank (or index) is 0-based, which means that the member with the lowest score has rank 0.
+// ZRank 返回指定成员的排名（从小到大）
 func (z *SortedSet) ZRank(key, member string) int64 {
 	if !z.exist(key) {
 		return -1
@@ -299,8 +297,7 @@ func (z *SortedSet) ZRank(key, member string) int64 {
 	return rank
 }
 
-// ZRevRank returns the rank of member in the sorted set stored at key, with the scores ordered from high to low.
-// The rank (or index) is 0-based, which means that the member with the highest score has rank 0.
+// ZRevRank 返回指定成员的排名（从大到小）
 func (z *SortedSet) ZRevRank(key, member string) int64 {
 	if !z.exist(key) {
 		return -1
@@ -316,9 +313,7 @@ func (z *SortedSet) ZRevRank(key, member string) int64 {
 	return z.record[key].skl.length - rank
 }
 
-// ZIncrBy increments the score of member in the sorted set stored at key by increment.
-// If member does not exist in the sorted set, it is added with increment as its score (as if its previous score was 0.0).
-// If key does not exist, a new sorted set with the specified member as its sole member is created.
+// ZIncrBy 给指定成员增加分值
 func (z *SortedSet) ZIncrBy(key string, increment float64, member string) float64 {
 	if z.exist(key) {
 		node, exist := z.record[key].dict[member]
@@ -331,7 +326,7 @@ func (z *SortedSet) ZIncrBy(key string, increment float64, member string) float6
 	return increment
 }
 
-// ZRange returns the specified range of elements in the sorted set stored at <key>.
+// ZRange 返回指定下标范围的成员集合（只有member）（从小到大）
 func (z *SortedSet) ZRange(key string, start, stop int) []interface{} {
 	if !z.exist(key) {
 		return nil
@@ -340,7 +335,7 @@ func (z *SortedSet) ZRange(key string, start, stop int) []interface{} {
 	return z.findRange(key, int64(start), int64(stop), false, false)
 }
 
-// ZRangeWithScores returns the specified range of elements in the sorted set stored at <key>.
+// ZRangeWithScores 返回指定下标范围的成员集合（带score返回）（从小到大）
 func (z *SortedSet) ZRangeWithScores(key string, start, stop int) []interface{} {
 	if !z.exist(key) {
 		return nil
@@ -349,9 +344,7 @@ func (z *SortedSet) ZRangeWithScores(key string, start, stop int) []interface{} 
 	return z.findRange(key, int64(start), int64(stop), false, true)
 }
 
-// ZRevRange returns the specified range of elements in the sorted set stored at key.
-// The elements are considered to be ordered from the highest to the lowest score.
-// Descending lexicographical order is used for elements with equal score.
+// ZRevRange 返回指定下标范围的成员集合（只有member）（从大到小）
 func (z *SortedSet) ZRevRange(key string, start, stop int) []interface{} {
 	if !z.exist(key) {
 		return nil
@@ -360,9 +353,7 @@ func (z *SortedSet) ZRevRange(key string, start, stop int) []interface{} {
 	return z.findRange(key, int64(start), int64(stop), true, false)
 }
 
-// ZRevRangeWithScores returns the specified range of elements in the sorted set stored at key.
-// The elements are considered to be ordered from the highest to the lowest score.
-// Descending lexicographical order is used for elements with equal score.
+// ZRevRangeWithScores 返回指定下标范围的成员集合（带score返回）（从大到小）
 func (z *SortedSet) ZRevRangeWithScores(key string, start, stop int) []interface{} {
 	if !z.exist(key) {
 		return nil
@@ -371,13 +362,13 @@ func (z *SortedSet) ZRevRangeWithScores(key string, start, stop int) []interface
 	return z.findRange(key, int64(start), int64(stop), true, true)
 }
 
-// ZRem removes the specified members from the sorted set stored at key. Non existing members are ignored.
-// An error is returned when key exists and does not hold a sorted set.
+// ZRem 删除指定元素
 func (z *SortedSet) ZRem(key, member string) bool {
 	if !z.exist(key) {
 		return false
 	}
 
+	//先用字典查出分值，再根据分值二分删除
 	v, exist := z.record[key].dict[member]
 	if exist {
 		z.record[key].skl.sklDelete(v.score, member)
@@ -388,8 +379,7 @@ func (z *SortedSet) ZRem(key, member string) bool {
 	return false
 }
 
-// ZGetByRank get the member at key by rank, the rank is ordered from lowest to highest.
-// The rank of lowest is 0 and so on.
+// ZGetByRank 返回指定排名的成员和分值（从小到大）
 func (z *SortedSet) ZGetByRank(key string, rank int) (val []interface{}) {
 	if !z.exist(key) {
 		return
@@ -400,8 +390,7 @@ func (z *SortedSet) ZGetByRank(key string, rank int) (val []interface{}) {
 	return
 }
 
-// ZRevGetByRank get the member at key by rank, the rank is ordered from highest to lowest.
-// The rank of highest is 0 and so on.
+// ZRevGetByRank 返回指定排名的成员和分值（从大到小）
 func (z *SortedSet) ZRevGetByRank(key string, rank int) (val []interface{}) {
 	if !z.exist(key) {
 		return
@@ -412,8 +401,7 @@ func (z *SortedSet) ZRevGetByRank(key string, rank int) (val []interface{}) {
 	return
 }
 
-// ZScoreRange returns all the elements in the sorted set at key with a score between min and max (including elements with score equal to min or max).
-// The elements are considered to be ordered from low to high scores.
+// ZScoreRange 返回指定分数范围的元素（成员和分数）（从小到大）
 func (z *SortedSet) ZScoreRange(key string, min, max float64) (val []interface{}) {
 	if !z.exist(key) || min > max {
 		return
@@ -450,8 +438,7 @@ func (z *SortedSet) ZScoreRange(key string, min, max float64) (val []interface{}
 	return
 }
 
-// ZRevScoreRange returns all the elements in the sorted set at key with a score between max and min (including elements with score equal to max or min).
-// In contrary to the default ordering of sorted sets, for this command the elements are considered to be ordered from high to low scores.
+// ZRevScoreRange 返回指定分数范围的元素（成员和分数）（从大到小）
 func (z *SortedSet) ZRevScoreRange(key string, max, min float64) (val []interface{}) {
 	if !z.exist(key) || max < min {
 		return
@@ -487,19 +474,18 @@ func (z *SortedSet) ZRevScoreRange(key string, max, min float64) (val []interfac
 	return
 }
 
-// ZKeyExists check if the key exists in zset.
+// ZKeyExists 检查key是否存在
 func (z *SortedSet) ZKeyExists(key string) bool {
 	return z.exist(key)
 }
 
-// ZClear clear the key in zset.
+// ZClear 清除key对应的有序集合
 func (z *SortedSet) ZClear(key string) {
 	if z.ZKeyExists(key) {
 		delete(z.record, key)
 	}
 }
 
-//exist judge if the sortedSet of the key exists
 func (z *SortedSet) exist(key string) bool {
 	_, exist := z.record[key]
 	return exist

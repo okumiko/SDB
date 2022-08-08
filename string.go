@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Set key to hold the string value. If key already holds a value,overwrite it.
+// Set 设置key的value
 func (db *SDB) Set(key, value []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -26,7 +26,7 @@ func (db *SDB) Set(key, value []byte) error {
 	return err
 }
 
-// SetEX set key to hold the string value and set key to timeout after the given duration.
+// SetEX 带过期时间的设置key的value
 func (db *SDB) SetEX(key, value []byte, duration time.Duration) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -47,7 +47,7 @@ func (db *SDB) SetEX(key, value []byte, duration time.Duration) error {
 	return err
 }
 
-// SetNX sets the key-value pair if it is not exist. It returns nil if the key already exists.
+// SetNX 如果不存在设置一个key的value，如果存在返回nil
 func (db *SDB) SetNX(key, value []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -79,16 +79,14 @@ func (db *SDB) SetNX(key, value []byte) error {
 	return err
 }
 
-// Get the value of key.
-// If the key does not exist the error ErrKeyNotFound is returned.
+// Get 获取key的value
 func (db *SDB) Get(key []byte) ([]byte, error) {
 	db.strIndex.mu.RLock()
 	defer db.strIndex.mu.RUnlock()
 	return db.getVal(key, String)
 }
 
-// MGet get the values of all specified keys.
-// If the key that does not hold a string value or does not exist, nil is returned.
+// MGet 批量获取key的value
 func (db *SDB) MGet(keys [][]byte) ([][]byte, error) {
 	db.strIndex.mu.RLock()
 	defer db.strIndex.mu.RUnlock()

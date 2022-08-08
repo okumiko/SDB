@@ -3,15 +3,15 @@ package sdb
 import "errors"
 
 var (
-	// ErrKeyNotFound key not found
+	// ErrKeyNotFound key不存在
 	ErrKeyNotFound = errors.New("key not found")
 
-	// ErrLogFileNotFound log file not found
+	// ErrLogFileNotFound 磁盘存储文件未找到
 	ErrLogFileNotFound = errors.New("log file not found")
 
-	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
+	// ErrWrongNumberOfArgs 参数个数不匹配
 	ErrWrongNumberOfArgs = errors.New("wrong number of arguments")
 
-	//ErrMergeRunning lock the SDB when log file is merging
+	//ErrMergeRunning 文件进行merge时无法再进行merge
 	ErrMergeRunning = errors.New("log file merge is running, retry later")
 )

@@ -14,7 +14,8 @@ type (
 	SDB struct { //db内存中的数据结构
 		opts Options //设置
 
-		//bitcask模型
+		// bitcask模型
+
 		activeFiles    map[DataType]*bitcask.LogFile //活跃文件map，只有一个
 		immutableFiles map[DataType]immutableFiles   //非活跃文件map，每种数据类型多个非活跃文件
 		fileIDMap      map[DataType][]uint32         //仅启动时OpenDB使用，以后不更新，fid有序

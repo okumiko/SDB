@@ -11,27 +11,27 @@ import (
 )
 
 var (
-	// ErrInvalidCrc invalid crc.
-	ErrInvalidCrc = errors.New("logfile: invalid crc")
+	// ErrInvalidCrc CRC校验失败
+	ErrInvalidCrc = errors.New("invalid crc")
 
-	// ErrWriteSizeNotEqual write size is not equal to entry size.
-	ErrWriteSizeNotEqual = errors.New("logfile: write size is not equal to entry size")
+	// ErrWriteSizeNotEqual 写入的数据大小和buffer大小不相等
+	ErrWriteSizeNotEqual = errors.New("write size is not equal to record size")
 
-	// ErrEndOfEntry end of entry in log file.
-	ErrEndOfRecord = errors.New("logfile: end of entry in log file")
+	// ErrEndOfRecord record结尾
+	ErrEndOfRecord = errors.New("end of record in log file")
 
-	// ErrUnsupportedIoType unsupported io type, only mmap and fileIO now.
+	// ErrUnsupportedIOType 只支持标准IO和MMAP
 	ErrUnsupportedIOType = errors.New("unsupported io type")
 
-	// ErrUnsupportedLogFileType unsupported log file type, only WAL and ValueLog now.
+	// ErrUnsupportedLogFileType 不支持的数据格式
 	ErrUnsupportedLogFileType = errors.New("unsupported log file type")
 )
 
 const (
-	// InitialLogFileId initial log file id: 0.
+	// InitialLogFileId 文件id从0开始，全局变量
 	InitialLogFileId = 0
 
-	// FilePrefix log file prefix.
+	// FilePrefix 磁盘中的文件统一前缀
 	FilePrefix = "log."
 )
 
@@ -144,7 +144,7 @@ func (lf *LogFile) ReadLogRecord(offset int64) (lr *LogRecord, recordSize int64,
 	keySize, valueSize := int64(header.kSize), int64(header.vSize)
 	recordSize = headerSize + keySize + valueSize
 
-	//read kv
+	// 读出key&value
 	if keySize > 0 || valueSize > 0 {
 		kvBuf, err := lf.readBytes(offset+headerSize, keySize+valueSize)
 		if err != nil {
@@ -154,7 +154,7 @@ func (lf *LogFile) ReadLogRecord(offset int64) (lr *LogRecord, recordSize int64,
 		lr.Value = kvBuf[keySize:]
 	}
 
-	//crc check
+	// crc校验
 	if crc := getRecordCrc(lr, headerBuf[crc32.Size:headerSize]); crc != header.crc32 {
 		return nil, 0, ErrInvalidCrc
 	}
@@ -180,17 +180,17 @@ func (lf *LogFile) Write(buf []byte) error {
 	return nil
 }
 
-// Sync commits the current contents of the log file to stable storage.
+// Sync 刷盘
 func (lf *LogFile) Sync() error {
 	return lf.IoSelector.Sync()
 }
 
-// Close current log file.
+// Close 关闭读写
 func (lf *LogFile) Close() error {
 	return lf.IoSelector.Close()
 }
 
-// Delete delete current log file.
+// Delete 删除文件
 // File can`t be retrieved if do this, so use it carefully.
 func (lf *LogFile) Delete() error {
 	return lf.IoSelector.Delete()

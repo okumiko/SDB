@@ -6,7 +6,7 @@ import (
 	"sdb/utils"
 )
 
-// ZAdd adds the specified member with the specified score to the sorted set stored at key.
+// ZAdd 设置指定key的有序集合的member的score
 func (db *SDB) ZAdd(key []byte, score float64, value []byte) error {
 	db.zsetIndex.mu.Lock()
 	defer db.zsetIndex.mu.Unlock()

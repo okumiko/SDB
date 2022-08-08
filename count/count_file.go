@@ -120,7 +120,7 @@ func (cf *CountFile) SetFileSize(fileID uint32, fileSize uint32) error {
 	return nil
 }
 
-//GetMCL get merge candidate list
+//GetMCL == get merge candidate list
 //从count file获取需要被merge的文件
 //传入活跃文件id，不merge活跃文件，传入ratio设置的占用率阈值，超过的视为需要merge了
 func (cf *CountFile) GetMCL(activeFID uint32, ratio float64) ([]uint32, error) {

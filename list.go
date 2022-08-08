@@ -67,7 +67,7 @@ func (db *SDB) RPush(key []byte, values ...[]byte) error {
 	return nil
 }
 
-// RPop Removes and returns 队尾元素
+// RPop 移除并返回队尾元素
 func (db *SDB) RPop(key []byte) ([]byte, error) {
 	db.listIndex.mu.Lock()
 	defer db.listIndex.mu.Unlock()
