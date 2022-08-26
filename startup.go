@@ -4,6 +4,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"sdb/art"
 	"sdb/bitcask"
 	"sdb/count"
@@ -11,12 +18,6 @@ import (
 	"sdb/logger"
 	"sdb/options"
 	"sdb/utils"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 func OpenDB(opts options.Options) (*SDB, error) {
@@ -29,7 +30,7 @@ func OpenDB(opts options.Options) (*SDB, error) {
 
 	// acquire file lock to prevent multiple processes from accessing the same directory.
 	lockPath := filepath.Join(opts.DBPath, lockFileName)
-	//加排他锁
+	// 加排他锁
 	fileLock, err := flock.AcquireFileLock(lockPath, false)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,7 @@ func (db *SDB) initCountFiles() error {
 		}
 	}
 
-	//每个数据类型对应一个count_file
+	// 每个数据类型对应一个count_file
 	countFiles := make(map[DataType]*count.CountFile)
 	for i := String; i < logFileTypeNum; i++ {
 		name := bitcask.FileNameMap[bitcask.FileType(i)] + count.CountFileName
@@ -91,17 +92,17 @@ func (db *SDB) initCountFiles() error {
 	return nil
 }
 
-//从磁盘加载日志文件信息
+// 从磁盘加载日志文件信息
 func (db *SDB) initLogFiles() error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	//读sdb目录下的所有文件
+	// 读sdb目录下的所有文件
 	dirEntries, err := os.ReadDir(db.opts.DBPath)
 	if err != nil {
 		return err
 	}
 
-	//根据数据类型对文件分类
+	// 根据数据类型对文件分类
 	fileIDMap := make(map[DataType][]uint32)
 	for _, file := range dirEntries {
 		if strings.HasPrefix(file.Name(), bitcask.FilePrefix) {
@@ -116,7 +117,7 @@ func (db *SDB) initLogFiles() error {
 	}
 	db.fileIDMap = fileIDMap
 
-	//每个dataType都要系统调用打开文件，没必要起协程了
+	// 每个dataType都要系统调用打开文件，没必要起协程了
 	for dataType, fIDs := range fileIDMap {
 		db.immutableFiles[dataType] = make(immutableFiles)
 
@@ -124,12 +125,12 @@ func (db *SDB) initLogFiles() error {
 			continue
 		}
 
-		//把fIDs按从小到大顺序排序，fID越小代表创建越早
+		// 把fIDs按从小到大顺序排序，fID越小代表创建越早
 		sort.Slice(fIDs, func(i, j int) bool {
 			return fIDs[i] < fIDs[j]
 		})
 
-		//分配给活跃和非活跃文件map
+		// 分配给活跃和非活跃文件map
 		for i, fID := range fIDs {
 			fType, IOType := bitcask.FileType(dataType), bitcask.IOType(db.opts.IoType)
 			lf, err := bitcask.OpenLogFile(db.opts.DBPath, fID, db.opts.LogFileSizeThreshold, fType, IOType)
@@ -147,13 +148,13 @@ func (db *SDB) initLogFiles() error {
 	return nil
 }
 
-//根据日志文件构建索引树
+// 根据日志文件构建索引树
 func (db *SDB) initIndexFromLogFiles() error {
 	iterateAndHandle := func(dataType DataType, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		fIDs := db.fileIDMap[dataType]
-		for i, fID := range fIDs { //fIDs已经有序
+		for i, fID := range fIDs { // fIDs已经有序
 			var logfile *bitcask.LogFile
 			if i == len(fIDs)-1 {
 				logfile = db.activeFiles[dataType]
@@ -198,8 +199,8 @@ func (db *SDB) initIndexFromLogFiles() error {
 	return nil
 }
 
-//key --> keyDir
-//key --> file_id | record_size | record_offset | t_stamp
+// key --> keyDir
+// key --> file_id | record_size | record_offset | t_stamp
 func (db *SDB) buildIndex(dataType DataType, record *bitcask.LogRecord, keyDir *keyDir) {
 	switch dataType {
 	case String:
@@ -213,23 +214,23 @@ func (db *SDB) buildIndex(dataType DataType, record *bitcask.LogRecord, keyDir *
 
 func (db *SDB) buildStrIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 	strKey := record.Key
-	//过期或者删除了，删除索引
+	// 过期或者删除了，删除索引
 	if record.Type == bitcask.TypeDelete || (record.ExpiredAt != 0 && record.ExpiredAt < time.Now().Unix()) {
 		db.strIndex.idxTree.Delete(strKey)
 		return
 	}
-	if db.opts.IndexMode == options.KeyValueMemMode {
+	if db.opts.StoreMode == options.MemoryMode {
 		keyDir.value = record.Value
 	}
 	db.strIndex.idxTree.Put(strKey, keyDir)
 }
 
-//两种key，
-//1.seq|key
-//2.key
+// 两种key，
+// 1.seq|key
+// 2.key
 func (db *SDB) buildListIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 	TreeKey := record.Key
-	if record.Type != bitcask.TypeListSeq { //序号record key是key，值record key是key+seq
+	if record.Type != bitcask.TypeListSeq { // 序号record key是key，值record key是key+seq
 		TreeKey, _ = utils.DecodeListKey(record.Key)
 	}
 	if db.listIndex.trees[string(TreeKey)] == nil {
@@ -237,19 +238,19 @@ func (db *SDB) buildListIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 	}
 	db.listIndex.idxTree = db.listIndex.trees[string(TreeKey)]
 
-	//对于value来说ar树的key是key+seq
+	// 对于value来说ar树的key是key+seq
 	if record.Type == bitcask.TypeDelete || (record.ExpiredAt != 0 && record.ExpiredAt < time.Now().Unix()) {
 		db.listIndex.idxTree.Delete(record.Key)
 		return
 	}
-	if db.opts.IndexMode == options.KeyValueMemMode {
+	if db.opts.StoreMode == options.MemoryMode {
 		keyDir.value = record.Value
 	}
 
 	db.listIndex.idxTree.Put(record.Key, keyDir)
 }
 
-//key对应ar树，field对应每个ar树的索引
+// key对应ar树，field对应每个ar树的索引
 func (db *SDB) buildHashIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 	TreeKey, field := utils.DecodeHashKey(record.Key)
 	if db.hashIndex.trees[string(TreeKey)] == nil {
@@ -262,7 +263,7 @@ func (db *SDB) buildHashIndex(record *bitcask.LogRecord, keyDir *keyDir) {
 		return
 	}
 
-	if db.opts.IndexMode == options.KeyValueMemMode {
+	if db.opts.StoreMode == options.MemoryMode {
 		keyDir.value = record.Value
 	}
 

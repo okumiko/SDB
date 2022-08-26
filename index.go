@@ -1,13 +1,14 @@
 package sdb
 
 import (
+	"sync"
+	"time"
+
 	"sdb/art"
 	"sdb/bitcask"
 	"sdb/options"
 	"sdb/utils"
 	"sdb/zset"
-	"sync"
-	"time"
 )
 
 type (
@@ -73,10 +74,10 @@ func newZSetIndex() *zsetIndex {
 	}
 }
 
-//更新索引树
+// 更新索引树
 func (db *SDB) updateIndexTree(lr *bitcask.LogRecord, keyDir *keyDir, sendCount bool, dType DataType) error {
-	// in KeyValueMemMode, both key and value will store in memory.
-	if db.opts.IndexMode == options.KeyValueMemMode {
+
+	if db.opts.StoreMode == options.MemoryMode {
 		keyDir.value = lr.Value
 	}
 
@@ -101,7 +102,7 @@ func (db *SDB) updateIndexTree(lr *bitcask.LogRecord, keyDir *keyDir, sendCount 
 	return nil
 }
 
-//删除索引树指定key
+// 删除索引树指定key
 func (db *SDB) deleteIndexTree(key []byte, keyDir *keyDir, dType DataType) error {
 	var idxTree *art.AdaptiveRadixTree
 	switch dType {
@@ -116,16 +117,16 @@ func (db *SDB) deleteIndexTree(key []byte, keyDir *keyDir, dType DataType) error
 	case ZSet:
 		idxTree = db.zsetIndex.idxTree
 	}
-	//返回的record是被删除的record
+	// 返回的record是被删除的record
 	valDeleted, deleted := idxTree.Delete(key)
 	db.sendCountChan(valDeleted, deleted, dType)
 	// 还有标记这个key被删除的record没有删除，即删除标志位为1的记录本身
-	//因为已经删除了，删除的这条记录的记录也应该删除
+	// 因为已经删除了，删除的这条记录的记录也应该删除
 	db.sendCountChan(keyDir, deleted, dType)
 	return nil
 }
 
-//通用取值函数
+// 通用取值函数
 func (db *SDB) getVal(key []byte, dataType DataType) ([]byte, error) {
 	// 根据key从ar树中获取keyDir
 	var idxTree *art.AdaptiveRadixTree
@@ -156,13 +157,13 @@ func (db *SDB) getVal(key []byte, dataType DataType) ([]byte, error) {
 	}
 	// In KeyValueMemMode, the value will be stored in memory.
 	// So get the value from the index info.
-	if db.opts.IndexMode == options.KeyValueMemMode && len(keyDir.value) != 0 {
+	if db.opts.StoreMode == options.MemoryMode && len(keyDir.value) != 0 {
 		return keyDir.value, nil
 	}
 
 	// In KeyOnlyMemMode, the value not in memory, so get the value from log file at the offset.
 	lf := db.getActiveLogFile(dataType)
-	//如果不在活跃文件中,从非活跃文件读，找到file_id对应的非活跃文件
+	// 如果不在活跃文件中,从非活跃文件读，找到file_id对应的非活跃文件
 	if lf.FileID != keyDir.fileID {
 		lf = db.getImmutableFile(dataType, keyDir.fileID)
 	}
@@ -171,7 +172,7 @@ func (db *SDB) getVal(key []byte, dataType DataType) ([]byte, error) {
 		return nil, ErrLogFileNotFound
 	}
 
-	//根据offset从文件系统读record
+	// 根据offset从文件系统读record
 	record, _, err := lf.ReadLogRecord(keyDir.recordOffset)
 	if err != nil {
 		return nil, err

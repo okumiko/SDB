@@ -3,13 +3,14 @@ package ioselector
 import (
 	"io"
 	"os"
+
 	"sdb/mmap"
 )
 
 // MMapSelector MMAP方式实现IOSelector
 type MMapSelector struct {
 	file *os.File
-	buf  []byte //没有加锁，因为写不同的offset不会race
+	buf  []byte // 没有加锁，因为写不同的offset不会race
 	cap  int64
 }
 
@@ -21,7 +22,7 @@ func NewMMapSelector(fileName string, fileSize int64) (IOSelector, error) {
 	if err != nil {
 		return nil, err
 	}
-	buf, err := mmap.Mmap(file, true, int(fileSize))
+	buf, err := mmap.MMap(file, true, fileSize)
 	if err != nil {
 		return nil, err
 	}
@@ -48,33 +49,33 @@ func (m *MMapSelector) Read(b []byte, offset int64) (int, error) {
 }
 
 func (m *MMapSelector) Sync() error {
-	return mmap.Msync(m.buf)
+	return mmap.MSync(m.buf)
 }
 
 func (m *MMapSelector) Close() error {
-	//先持久化
-	if err := mmap.Msync(m.buf); err != nil {
+	// 先持久化
+	if err := mmap.MSync(m.buf); err != nil {
 		return err
 	}
-	//再取消映射
-	if err := mmap.Munmap(m.buf); err != nil {
+	// 再取消映射
+	if err := mmap.MUnmap(m.buf); err != nil {
 		return err
 	}
-	//最后关闭文件
+	// 最后关闭文件
 	return m.file.Close()
 }
 
 func (m *MMapSelector) Delete() error {
-	//取消映射
-	if err := mmap.Munmap(m.buf); err != nil {
+	// 取消映射
+	if err := mmap.MUnmap(m.buf); err != nil {
 		return err
 	}
-	m.buf = nil //清空buf
-	//清空文件
+	m.buf = nil // 清空buf
+	// 清空文件
 	if err := m.file.Truncate(0); err != nil {
 		return err
 	}
-	//关闭文件
+	// 关闭文件
 	if err := m.file.Close(); err != nil {
 		return err
 	}

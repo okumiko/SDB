@@ -2,8 +2,9 @@ package sdb
 
 import (
 	"errors"
-	"sdb/bitcask"
 	"time"
+
+	"sdb/bitcask"
 )
 
 // Set 设置key的value
@@ -35,7 +36,7 @@ func (db *SDB) SetEX(key, value []byte, duration time.Duration) error {
 	record := &bitcask.LogRecord{
 		Key:       key,
 		Value:     value,
-		ExpiredAt: time.Now().Add(duration).Unix(), //就多了个过期时间
+		ExpiredAt: time.Now().Add(duration).Unix(), // 就多了个过期时间
 	}
 
 	keyDir, err := db.writeLogRecord(record, String)
@@ -52,18 +53,18 @@ func (db *SDB) SetNX(key, value []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
 
-	//GET
+	// GET
 	_, err := db.getVal(key, String)
 
-	//其他错误
+	// 其他错误
 	if err != nil && !errors.Is(err, ErrKeyNotFound) {
 		return err
 	}
-	//如果key存在
+	// 如果key存在
 	if err == nil {
 		return nil
 	}
-	//SET
+	// SET
 	// 构造record
 	record := &bitcask.LogRecord{
 		Key:   key,
@@ -105,7 +106,7 @@ func (db *SDB) MGet(keys [][]byte) ([][]byte, error) {
 	return values, nil
 }
 
-//Delete 追加写的方式删除
+// Delete 追加写的方式删除
 func (db *SDB) Delete(key []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -119,7 +120,7 @@ func (db *SDB) Delete(key []byte) error {
 		return err
 	}
 
-	//索引树删除key
+	// 索引树删除key
 	err = db.deleteIndexTree(key, keyDir, String)
 	return err
 }

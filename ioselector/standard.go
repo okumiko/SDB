@@ -32,7 +32,7 @@ func (sio *StandardIOSelector) Sync() error {
 }
 
 func (sio *StandardIOSelector) Close() error {
-	//先持久化
+	// 先持久化
 	if err := sio.Sync(); err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (sio *StandardIOSelector) Close() error {
 }
 
 func (sio *StandardIOSelector) Delete() error {
-	//清空文件
+	// 清空文件
 	if err := sio.file.Truncate(0); err != nil {
 		return err
 	}

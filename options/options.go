@@ -2,15 +2,15 @@ package options
 
 import "time"
 
-// DataIndexMode 存储模式
-type DataIndexMode int
+// StoreMode 存储模式
+type StoreMode int
 
 const (
-	// KeyValueMemMode 纯内存
-	KeyValueMemMode DataIndexMode = iota
+	// MemoryMode 纯内存
+	MemoryMode StoreMode = iota
 
-	// KeyOnlyMemMode BitCask型
-	KeyOnlyMemMode
+	// BitCaskMode BitCask型
+	BitCaskMode
 )
 
 // IOType IO类型
@@ -29,31 +29,31 @@ type Options struct {
 	DBPath string
 
 	// 节点存储类型
-	IndexMode DataIndexMode
+	StoreMode StoreMode
 
 	// IO方式
 	IoType IOType
 
-	//写操作是否立刻刷盘
+	// 写操作是否立刻刷盘
 	Sync bool
 
-	//merge操作间隔时间
+	// merge操作间隔时间
 	LogFileMergeInterval time.Duration
 
 	// 存储空间达到阈值的文件将会加入merge列表，从占用率从大到小进行merge
 	LogFileMergeRatio float64
 
-	//每个文件的最大大小
+	// 每个文件的最大大小
 	LogFileSizeThreshold int64
 
-	//向countFile发送的channel缓冲大小
+	// 向countFile发送的channel缓冲大小
 	CountBufferSize int
 }
 
-func DefaultOptions(path string) Options {
+func NewDefaultOptions(path string) Options {
 	return Options{
 		DBPath:               path,
-		IndexMode:            KeyOnlyMemMode,
+		StoreMode:            BitCaskMode,
 		IoType:               FileIO,
 		Sync:                 false,
 		LogFileMergeInterval: time.Hour * 8,
