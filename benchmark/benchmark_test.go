@@ -33,12 +33,20 @@ func initDataForGet() {
 	}
 }
 
-func BenchmarkRoseDB_Set(b *testing.B) {
+func BenchmarkSDBSet(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		err := db.Set(getKey32Bytes(i), getValue128Bytes())
+		assert.Nil(b, err)
+	}
+}
+func BenchmarkSDBGet(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := db.Get(getKey32Bytes(i))
 		assert.Nil(b, err)
 	}
 }

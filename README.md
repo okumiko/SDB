@@ -14,3 +14,10 @@ pkg: sdb/benchmark
 cpu: Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz
 BenchmarkRoseDB_Set
 BenchmarkRoseDB_Set-12    	  171963	      7596 ns/op	     780 B/op	      10 allocs/op
+### string get
+goos: darwin
+goarch: amd64
+pkg: sdb/benchmark
+cpu: Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz
+BenchmarkSDBGet
+BenchmarkSDBGet-12    	  336332	      3019 ns/op	     335 B/op	       6 allocs/op
