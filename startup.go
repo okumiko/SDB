@@ -50,17 +50,14 @@ func OpenDB(opts options.Options) (*SDB, error) {
 		zsetIndex: newZSetIndex(),
 	}
 
-	// init discard file.
 	if err := db.initCountFiles(); err != nil {
 		return nil, err
 	}
 
-	// init the log files from disk.
 	if err := db.initLogFiles(); err != nil {
 		return nil, err
 	}
 
-	// init indexes from log files.
 	if err := db.initIndexFromLogFiles(); err != nil {
 		return nil, err
 	}

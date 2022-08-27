@@ -1,8 +1,9 @@
 package sdb
 
 import (
-	"sdb/bitcask"
 	"sync/atomic"
+
+	"sdb/bitcask"
 )
 
 func (db *SDB) initLogFile(dataType DataType) (err error) {
@@ -35,25 +36,25 @@ func (db *SDB) writeLogRecord(lr *bitcask.LogRecord, dataType DataType) (kd *key
 		return
 	}
 
-	//获取磁盘活跃文件抽象
+	// 获取磁盘活跃文件抽象
 	activeFile := db.getActiveLogFile(dataType)
 	if activeFile == nil {
 		return nil, ErrLogFileNotFound
 	}
 
 	opts := db.opts
-	//编码record
+	// 编码record
 	lrBuf, recordSize := bitcask.EncodeRecord(lr)
 
-	//超过设定每个日志文件大小阈值，把活跃日志文件设置为非活跃文件
+	// 超过设定每个日志文件大小阈值，把活跃日志文件设置为非活跃文件
 	if activeFile.WriteOffSet+int64(recordSize) > opts.LogFileSizeThreshold {
 
-		//先把活跃文件刷盘
+		// 先把活跃文件刷盘
 		if err = activeFile.Sync(); err != nil {
 			return
 		}
 
-		//加锁，防止:1.file_map冲突 2.file_id冲突 3 file_map单实例
+		// 加锁，防止:1.file_map冲突 2.file_id冲突 3 file_map单实例
 		db.mu.Lock()
 		defer db.mu.Unlock()
 
@@ -71,13 +72,15 @@ func (db *SDB) writeLogRecord(lr *bitcask.LogRecord, dataType DataType) (kd *key
 		if err != nil {
 			return
 		}
-		//新日志文件，初始化下他在count file中的记录
+		// 新日志文件，初始化下他在count file中的记录
 		db.countFiles[dataType].SetFileSize(lf.FileID, uint32(opts.LogFileSizeThreshold))
-		//活跃文件映射替换为新文件
+		// 活跃文件映射替换为新文件
 		db.activeFiles[dataType] = lf
 		activeFile = lf
 	}
 
+	// 获取这个文件开始写的地方
+	writeAt := atomic.LoadInt64(&activeFile.WriteOffSet)
 	// 追加写文件
 	if err = activeFile.Write(lrBuf); err != nil {
 		return
@@ -91,7 +94,7 @@ func (db *SDB) writeLogRecord(lr *bitcask.LogRecord, dataType DataType) (kd *key
 	kd = &keyDir{
 		fileID:       activeFile.FileID,
 		recordSize:   recordSize,
-		recordOffset: atomic.LoadInt64(&activeFile.WriteOffSet),
+		recordOffset: writeAt,
 		expiredAt:    lr.ExpiredAt,
 	}
 	return

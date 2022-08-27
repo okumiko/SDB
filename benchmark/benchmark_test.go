@@ -2,6 +2,7 @@ package benchmark
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -13,7 +14,8 @@ import (
 var db *sdb.SDB
 
 func init() {
-	path := filepath.Join("/tmp", "rosedb_bench")
+	pwd, _ := os.Getwd()
+	path := filepath.Join(pwd, "test/benchmark")
 	opts := options.NewDefaultOptions(path)
 	var err error
 	db, err = sdb.OpenDB(opts)

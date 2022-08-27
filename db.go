@@ -94,9 +94,10 @@ func (db *SDB) CloseDB() error {
 		}
 	}
 	// 关闭并持久化count file
-	for _, file := range db.countFiles {
-		_ = file.Sync()
-		_ = file.Close()
+	for _, cf := range db.countFiles {
+		cf.Once.Do(func() {
+			close(cf.CountRcv)
+		})
 	}
 	// 设置关闭标志位
 	atomic.StoreInt32(&db.closed, 1)

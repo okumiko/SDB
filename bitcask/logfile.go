@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"hash/crc32"
 	"path/filepath"
-	"sdb/ioselector"
 	"sync"
 	"sync/atomic"
+
+	"sdb/ioselector"
 )
 
 var (
@@ -72,15 +73,15 @@ const (
 	MMap
 )
 
-//LogFile 读写磁盘文件的抽象
+// LogFile 读写磁盘文件的抽象
 type LogFile struct {
 	sync.RWMutex
-	FileID      uint32                //文件id
-	WriteOffSet int64                 //追加写的offset
-	IoSelector  ioselector.IOSelector //IO接口
+	FileID      uint32                // 文件id
+	WriteOffSet int64                 // 追加写的offset
+	IoSelector  ioselector.IOSelector // IO接口
 }
 
-//OpenLogFile 根据指定路径打开文件或者新建文件
+// OpenLogFile 根据指定路径打开文件或者新建文件
 func OpenLogFile(path string, fID uint32, fSize int64, fType FileType, ioType IOType) (lf *LogFile, err error) {
 	lf = &LogFile{FileID: fID}
 	fileName, err := lf.getLogFileName(path, fID, fType)
@@ -106,27 +107,27 @@ func OpenLogFile(path string, fID uint32, fSize int64, fType FileType, ioType IO
 	return
 }
 
-//getLogFileName 拼接文件全路径
+// getLogFileName 拼接文件全路径
 func (lf *LogFile) getLogFileName(path string, fid uint32, fType FileType) (name string, err error) {
 	if _, ok := FileNameMap[fType]; !ok {
 		return "", ErrUnsupportedLogFileType
 	}
 
 	fName := FileNameMap[fType] + fmt.Sprintf("%010d", fid)
-	name = filepath.Join(path, fName) //example: path/log.string.010
+	name = filepath.Join(path, fName) // example: path/log.string.010
 	return
 }
 
-//readBytes 读取文件指定大小字节
+// readBytes 读取文件指定大小字节
 func (lf *LogFile) readBytes(offset, n int64) (buf []byte, err error) {
 	buf = make([]byte, n)
 	_, err = lf.IoSelector.Read(buf, offset)
 	return
 }
 
-//ReadLogRecord 根据 offset 从文件读出logRecord
+// ReadLogRecord 根据 offset 从文件读出logRecord
 func (lf *LogFile) ReadLogRecord(offset int64) (lr *LogRecord, recordSize int64, err error) {
-	//read recordHead
+	// read recordHead
 	headerBuf, err := lf.readBytes(offset, MaxHeaderSize)
 	if err != nil {
 		return nil, 0, err
@@ -175,7 +176,7 @@ func (lf *LogFile) Write(buf []byte) error {
 		return ErrWriteSizeNotEqual
 	}
 
-	//offset后移
+	// offset后移
 	atomic.AddInt64(&lf.WriteOffSet, int64(n))
 	return nil
 }
